@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 
 	"math/rand"
@@ -153,98 +152,6 @@ func crawlPost(proxyAddr string, address string, params string, agent string, co
 	return body
 }
 
-func paInfo(company string, qiyeurl string, proxyAddr1 string) string {
-	proxyAddr := "http://" + proxyAddr1
-	proxy, err := url.Parse(proxyAddr)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	netTransport := &http.Transport{
-		Proxy:                 http.ProxyURL(proxy),
-		MaxIdleConnsPerHost:   10,
-		ResponseHeaderTimeout: time.Second * time.Duration(5),
-	}
-
-	client := &http.Client{
-		Timeout:   time.Second * 10,
-		Transport: netTransport,
-	}
-	req, err := http.NewRequest("POST", qiyeurl+company+".html?nodeNum=120000&entType=1&start=0&sourceType=I", strings.NewReader(""))
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	//req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; U; Android 2.2.1; zh-cn; HTC_Wildfire_A3333 Build/FRG83D) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1")
-	req.Header.Set("User-Agent", getAgent())
-	req.Header.Set("Host", "app.gsxt.gov.cn'")
-	//req.Header.Set("Cookie", "JSESSIONID=716E87F50A65B64473EAA8F73EA094CE; tlb_cookie=172.16.12.1108080; SECTOKEN=7064461226094101024; __jsluid=05ca2ab69649b8b5bd68b025854917bb")
-	req.Header.Set("Cookie", GetCookie())
-
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-
-	return string(body)
-}
-
-func searchCompany(company string, qiyeurl string, proxyAddr1 string) []byte {
-	proxyAddr := "http://" + proxyAddr1
-	proxy, err := url.Parse(proxyAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	netTransport := &http.Transport{
-		Proxy:                 http.ProxyURL(proxy),
-		MaxIdleConnsPerHost:   10,
-		ResponseHeaderTimeout: time.Second * time.Duration(5),
-	}
-
-	client := &http.Client{
-		Timeout:   time.Second * 10,
-		Transport: netTransport,
-	}
-	req, err := http.NewRequest("POST", qiyeurl, strings.NewReader("searchword="+company))
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	//req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; U; Android 2.2.1; zh-cn; HTC_Wildfire_A3333 Build/FRG83D) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1")
-	req.Header.Set("User-Agent", getAgent())
-	req.Header.Set("Host", "app.gsxt.gov.cn'")
-	//req.Header.Set("Cookie", "JSESSIONID=716E87F50A65B64473EAA8F73EA094CE; tlb_cookie=172.16.12.1108080; SECTOKEN=7064461226094101024; __jsluid=05ca2ab69649b8b5bd68b025854917bb")
-	req.Header.Set("Cookie", GetCookie())
-
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-
-	fmt.Println(string(body))
-	return body
-}
-
 func RandBigStringRunes(n int) string {
 	var letterRunes = []rune("1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	b := make([]rune, n)
@@ -361,7 +268,8 @@ func crawlCompany(company string, ac AntiClawer) {
 }
 
 func GetIPS(ipNum string) []string {
-	url := "http://piping.mogumiao.com/proxy/api/get_ip_bs?appKey=cde47c2f831a4b57918370609f2010e9&count=" + ipNum + "&expiryDate=0&format=2&newLine=2"
+	//url := "http://piping.mogumiao.com/proxy/api/get_ip_bs?appKey=cde47c2f831a4b57918370609f2010e9&count=" + ipNum + "&expiryDate=0&format=2&newLine=2"
+	url := "https://proxy.horocn.com/api/proxies?order_id=SXEP1630846323364165&&num=" + ipNum + "&format=text&line_separator=win&can_repeat=no"
 
 	response, err := http.Get(url)
 	if err != nil {
@@ -386,11 +294,11 @@ func GetIPPool(total int) chan string {
 
 	go func(ipsChan chan string) {
 		for i := 0; i < total; i++ {
-			s := GetIPS("10") // 最多一次10个
+			s := GetIPS("20") // 最多一次10个
 			for _, k := range s[0 : len(s)-1] {
 				ipsChan <- k
 			}
-			time.Sleep(time.Duration(2) * time.Second) // 拿IP需要延时
+			time.Sleep(time.Duration(11) * time.Second) // 拿IP需要延时
 		}
 	}(ipsChan)
 
@@ -398,7 +306,7 @@ func GetIPPool(total int) chan string {
 }
 
 func LoadCompany() []string {
-	b, err := ioutil.ReadFile("companyall.txt")
+	b, err := ioutil.ReadFile("qiye.txt")
 	if err != nil {
 		return nil
 	}
@@ -425,8 +333,10 @@ func main() {
 			Cookie:  GetCookie(),
 		}
 		go crawlCompany(c[i], ac)
-		time.Sleep(time.Duration(1) * time.Second)
 		i = i + 1
+		if i%10 == 0 {
+			time.Sleep(time.Duration(10) * time.Second)
+		}
 		//}
 	}
 }
